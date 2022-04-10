@@ -1,0 +1,3 @@
+rootProject.name='envoy'
+
+include 'envoy-core', 'envoy-jdk'

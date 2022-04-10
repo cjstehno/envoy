@@ -1,0 +1,147 @@
+plugins {
+    id 'java-library'
+    id "com.github.hierynomus.license" version '0.16.1'
+    id 'maven-publish'
+    id 'com.github.ben-manes.versions' version '0.41.0'
+    id "com.github.johnrengelman.shadow" version '7.1.2'
+    id 'jacoco'
+    id 'signing'
+}
+
+group = rootProject.group
+version = rootProject.version
+
+sourceCompatibility = 17
+targetCompatibility = 17
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // production
+    compileOnly "org.projectlombok:lombok:$lombokVersion"
+    annotationProcessor "org.projectlombok:lombok:$lombokVersion"
+
+    testCompileOnly "org.projectlombok:lombok:$lombokVersion"
+    testAnnotationProcessor "org.projectlombok:lombok:$lombokVersion"
+
+    api 'javax.servlet:javax.servlet-api:4.0.1'
+    api 'org.hamcrest:hamcrest-library:2.2'
+
+    implementation 'org.slf4j:slf4j-api:1.7.33'
+
+
+    // testing
+
+    testRuntimeOnly 'ch.qos.logback:logback-classic:1.2.10'
+    testImplementation "org.junit.jupiter:junit-jupiter-params:$junitVersion"
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:$junitVersion"
+    testImplementation 'org.mockito:mockito-junit-jupiter:4.2.0'
+
+    testImplementation 'org.awaitility:awaitility:4.1.1'
+    testImplementation 'io.github.cjstehno.ersatz:ersatz:3.1.0:safe'
+}
+
+test {
+    useJUnitPlatform()
+    maxParallelForks = Math.min(Runtime.runtime.availableProcessors(), 8)
+}
+
+jacocoTestReport {
+    dependsOn test
+}
+
+license {
+    header = file('../config/license_header.txt')
+
+    ignoreFailures false
+
+    ext.year = Calendar.instance.get(Calendar.YEAR)
+
+    excludes(['**/*.txt', '**/*.dtd', '**/*.xml', '**/*.ent', '**/*.jks', '**/*.jpg'])
+}
+
+task sourcesJar(type: Jar) {
+    description = 'Creates sources jar.'
+    archiveClassifier.set('sources')
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar) {
+    description = 'Creates API documentation jar.'
+    archiveClassifier.set('javadoc')
+    from javadoc
+}
+
+shadowJar {
+    archiveClassifier.set('safe')
+    dependencies {
+        exclude(dependency('javax.activation:activation:.*'))
+        exclude(dependency('org.slf4j:slf4j-api:.*'))
+        exclude(dependency('org.hamcrest::.*'))
+    }
+
+    mergeServiceFiles()
+}
+
+artifacts {
+    archives jar
+    archives sourcesJar
+    archives javadocJar
+    archives shadowJar
+}
+
+publishing {
+    publications {
+        ersatz(MavenPublication) {
+            from components.java
+            artifact sourcesJar
+            artifact javadocJar
+            groupId project.group
+            artifactId 'envoy-core'
+            version project.version
+            pom.withXml {
+                def root = asNode()
+
+                // remove test dependencies
+                root.dependencies.removeAll { dep -> dep.scope == 'test'}
+
+                root.appendNode('description', 'Proxy routing client library.')
+                root.appendNode('name', 'envoy-core')
+                root.appendNode('url', 'https://cjstehno.github.io/envoy')
+
+                def licenseNode = root.appendNode('licenses').appendNode('license')
+                licenseNode.appendNode('name', 'The Apache Software License, Version 2.0')
+                licenseNode.appendNode('url', 'http://www.apache.org/licenses/LICENSE-2.0.txt')
+                licenseNode.appendNode('distribution', 'repo')
+
+                def developersNode = root.appendNode('developers').appendNode('developer')
+                developersNode.appendNode('id', 'cjstehno')
+                developersNode.appendNode('name', 'Christopher J Stehno')
+                developersNode.appendNode('email', 'chris.stehno@gmail.com')
+
+                def scmNode = root.appendNode('scm')
+                scmNode.appendNode('connection', 'scm:git:git@github.com:cjstehno/envoy.git')
+                scmNode.appendNode('developerConnection', 'scm:git:git@github.com:cjstehno/envoy.git')
+                scmNode.appendNode('url', 'https://github.com/cjstehno/envoy')
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = 'OSSRH'
+            setUrl('https://s01.oss.sonatype.org/service/local/staging/deploy/maven2')
+            credentials {
+                username = findProperty('ossrhUser') ?: ''
+                password = findProperty('ossrhPass') ?: ''
+            }
+        }
+    }
+}
+
+signing {
+    useGpgCmd()
+    sign publishing.publications.ersatz
+}
+
