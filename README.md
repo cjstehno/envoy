@@ -4,6 +4,8 @@
 >
 > [☕ Buy me a coffee?](https://www.paypal.com/donate/?hosted_button_id=JA246LUCNUDHC)
 
+> This is nothing more than an experiment and prototype at this point.
+
 ## Quick Links
 
 * Site: https://cjstehno.github.io/envoy
