@@ -4,70 +4,70 @@ import io.github.cjstehno.envoy.cfg.EnvoyConfig;
 import io.github.cjstehno.envoy.cfg.IncomingResponse;
 import io.github.cjstehno.envoy.cfg.OutboundRequest;
 import io.github.cjstehno.envoy.client.EnvoyClientException;
+import io.github.cjstehno.envoy.http.WrappedIncomingResponse;
+import io.github.cjstehno.envoy.http.WrappedOutgoingRequest;
 import io.github.cjstehno.envoy.impl.EnvoyConfigImpl;
+import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
  * The entry point for the Envoy Routing client framework.
  */
+@Slf4j
 public class Envoy {
     // FIXME: logging
 
     private final EnvoyConfigImpl envoyConfig;
 
-    public Envoy(){
+    public Envoy() {
         envoyConfig = new EnvoyConfigImpl();
     }
 
-    public Envoy(final Consumer<EnvoyConfig> config){
+    public Envoy(final Consumer<EnvoyConfig> config) {
         this();
-        if( config != null ){
+        if (config != null) {
             config.accept(envoyConfig);
         }
     }
 
-    public Optional<HttpServletResponse> accept(final HttpServletRequest request){
-        // FIXME: this should wrap the request/response objects and hand off to the other method
-        return Optional.empty();
+    public void handle(final HttpServletRequest request, final HttpServletResponse response) throws EnvoyClientException {
+        handle(new WrappedOutgoingRequest(request), new WrappedIncomingResponse(response));
     }
 
-    public Optional<IncomingResponse> accept(final OutboundRequest request) throws EnvoyClientException {
+    public void handle(final OutboundRequest request, final IncomingResponse response) throws EnvoyClientException {
         val route = envoyConfig.findMatch(request);
-        if( route.isPresent()){
+        if (route.isPresent()) {
 
             // FIXME: apply the request transformations
+            // FIXME: add support for content transofmration
 
-            val response = envoyConfig.getClient().send(request);
+            envoyConfig.getClient().exchange(request, response);
 
             // FIXME: apply the response transformations
-
-            return Optional.of(response);
+            // FIXME: add support for content transformations
 
         } else {
             // no match - how should we handle it?
-            return switch (envoyConfig.getUnmatchedBehavior()){
-                case PROXY -> Optional.of(proxyRequest(request));
-                case FORWARD -> Optional.of(forwardRequest(request));
-                case IGNORE -> Optional.empty();
+            switch (envoyConfig.getUnmatchedBehavior()) {
+                case PROXY -> proxyRequest(request, response);
+                case FORWARD -> forwardRequest(request, response);
+                case IGNORE -> log.info("Ignored request...");
                 case ERROR -> throw new UnmatchedRequestException();
-            };
+            }
         }
     }
 
-    private IncomingResponse proxyRequest(final OutboundRequest request){
+    private void proxyRequest(final OutboundRequest request, final IncomingResponse response) {
         // FIXME: do a simple proxy of the request and return the response
         // FIXME: should global transformations be applied? - I think yes since its a proxy
-        return null;
     }
 
-    private IncomingResponse forwardRequest(final OutboundRequest request){
+    private void forwardRequest(final OutboundRequest request, final IncomingResponse response) {
         // FIXME: forward the request as is and return the response
         // FIXME: should global transformations be applied? - I think no since its as-is
-        return null;
     }
 }

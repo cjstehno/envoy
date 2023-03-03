@@ -14,7 +14,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 
 import static java.net.http.HttpClient.newHttpClient;
-import static java.net.http.HttpResponse.BodyHandlers.ofByteArray;
+import static java.net.http.HttpResponse.BodyHandlers.ofInputStream;
 
 // FIXME: document
 // FIXME: this will be moved into a sub-project once things are stable
@@ -32,37 +32,40 @@ public class JdkEnvoyClient implements EnvoyClient {
         this.http = httpClient;
     }
 
-    @Override public IncomingResponse send(final OutboundRequest request) throws EnvoyClientException {
+    @Override
+    public void exchange(final OutboundRequest request, final IncomingResponse response) throws EnvoyClientException {
         // FIXME: implement others
         // FIXME: how to handle/route exceptions
-        return switch (request.getMethod()) {
-            case GET -> sendGet(request);
+        switch (request.getMethod()) {
+            case GET -> sendGet(request, response);
 //            case HEAD -> ;
 //            case DELETE -> ;
 //            case POST -> ;
 //            case PUT -> ;
             default -> throw new IllegalStateException("Unexpected method: " + request.getMethod());
-        };
+        }
     }
 
-    private IncomingResponse sendGet(final OutboundRequest request) throws EnvoyClientException {
+    private void sendGet(final OutboundRequest request, final IncomingResponse response) throws EnvoyClientException {
         try {
             val httpRequest = HttpRequest.newBuilder(request.getUri());
 
-            // copy over the headers
+            // FIXME: make sure multiple value headers are supported properly
+
+            // copy over the request headers
             request.getHeaders().forEach((name, value) -> {
                 httpRequest.header(name, String.join(";", value));
             });
 
-            // TODO: is byte[] the best choice? maybe proviode a content strategy configuration (bytes, file, etc)
-            val httpResponse = http.send(httpRequest.build(), ofByteArray());
+            val httpResponse = http.send(httpRequest.build(), ofInputStream());
 
+            // copy over the response headers
             val headers = new HashMap<String, Deque<String>>();
             for (val entry : httpResponse.headers().map().entrySet()) {
                 headers.put(entry.getKey(), new LinkedList<>(entry.getValue()));
             }
 
-            return new IncomingResponseImpl<>(headers, httpResponse.body());
+            return new IncomingResponseImpl(headers, httpResponse.body());
 
         } catch (Exception ex) {
             /// FIXME: populate

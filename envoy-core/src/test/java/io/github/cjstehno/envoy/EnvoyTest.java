@@ -1,6 +1,7 @@
 package io.github.cjstehno.envoy;
 
 import io.github.cjstehno.envoy.cfg.HttpMethod;
+import io.github.cjstehno.envoy.cfg.OutboundRequest;
 import io.github.cjstehno.envoy.client.jdk.JdkEnvoyClient;
 import io.github.cjstehno.envoy.tr.RequestPathTransformer;
 import io.github.cjstehno.envoy.tr.ResponseHeaderTransformer;
@@ -60,7 +61,8 @@ class EnvoyTest {
         });
 
         // http://<host>:<port>/something --> https://<host>:<port>/other/else (no transfer-encoding)
-        val response = envoy.accept(request);
+
+         envoy.handle(request, response);
 
         // FIXME: check response
 

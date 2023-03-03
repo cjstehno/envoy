@@ -1,11 +1,12 @@
 package io.github.cjstehno.envoy.cfg;
 
+import java.io.InputStream;
 import java.util.Deque;
 import java.util.Map;
 
-public interface IncomingResponse<T> {
+public interface IncomingResponse {
 
     Map<String, Deque<String>> getHeaders();
 
-    T getContent();
+    InputStream getContent();
 }

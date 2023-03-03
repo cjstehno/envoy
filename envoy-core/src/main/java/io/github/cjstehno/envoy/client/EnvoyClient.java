@@ -5,5 +5,5 @@ import io.github.cjstehno.envoy.cfg.OutboundRequest;
 
 public interface EnvoyClient {
 
-    IncomingResponse send(final OutboundRequest request) throws EnvoyClientException;
+    void exchange(final OutboundRequest request, final IncomingResponse response) throws EnvoyClientException;
 }
